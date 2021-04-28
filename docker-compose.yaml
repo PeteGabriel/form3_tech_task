@@ -5,7 +5,9 @@ services:
       context: .
       dockerfile: ./Dockerfile
     environment:
-      - FORM3_FAKE_ACCOUNT_API=http://0.0.0.0:8080/v1/organisation/accounts
+      - ACCOUNT_API_ADDR=http://accountapi:8080/v1/organisation/accounts
+    depends_on:
+      - accountapi
   accountapi:
     image: form3tech/interview-accountapi:v1.0.0-39-gef7db03d
     restart: on-failure

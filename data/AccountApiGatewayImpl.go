@@ -9,10 +9,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 )
 
-//TODO move into something more flexible
-var accountApiUri = "http://0.0.0.0:8080/v1/organisation/accounts" //os.Getenv("FORM3_FAKE_ACCOUNT_API")
+var accountApiUri = os.Getenv("ACCOUNT_API_ADDR")
 const ContentType   = "application/vnd.api+json"
 
 
@@ -23,7 +23,6 @@ type Gateway struct {
 
 //Create a new account
 func (g *Gateway) Create(dto AccountDto) (AccountDto, error)  {
-
 	cnt, err := json.Marshal(dto)
 	if err != nil {
 		err = fmt.Errorf("error converting structure to json format: %s", err)
@@ -31,13 +30,12 @@ func (g *Gateway) Create(dto AccountDto) (AccountDto, error)  {
 		return AccountDto{}, err
 	}
 	resp, err := g.webClient.Post(accountApiUri, ContentType, bytes.NewBuffer(cnt))
-	defer resp.Body.Close()
-
 	if err != nil {
 		err = fmt.Errorf("error sending post request to account API: %s", err)
 		log.Print(err)
 		return AccountDto{}, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		msg, err := ioutil.ReadAll(resp.Body)
