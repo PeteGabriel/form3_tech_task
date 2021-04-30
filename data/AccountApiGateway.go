@@ -11,5 +11,5 @@ type AccountApiGateway interface {
 	Delete(uid uuid.UUID) error
 
 	//Get an account by id
-	Get(id uuid.UUID) AccountDto
+	Get(id uuid.UUID) (AccountDto, error)
 }
