@@ -3,6 +3,7 @@ package data
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"io/ioutil"
@@ -46,17 +47,35 @@ func (g *gateway) Create(dto AccountDto) (AccountDto, error) {
 	}
 	defer resp.Body.Close()
 
-	acc, err := unmarshalResponse(resp)
-	if err != nil {
-		log.Print(err)
-		return acc, err
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return AccountDto{}, fmt.Errorf("error reading body content: %s", err)
+		}
+		acc := AccountDto{}
+		if err = json.Unmarshal(body, &acc); err != nil {
+			return acc, fmt.Errorf("error converting json format to structure: %s", err)
+		}
+		return acc, nil
+	case http.StatusBadRequest, http.StatusConflict:
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return AccountDto{}, fmt.Errorf("error reading body content: %s", err)
+		}
+		accError := AccountError{}
+		if err = json.Unmarshal(body, &accError); err != nil {
+			return AccountDto{}, fmt.Errorf("error converting json format to structure: %s", err)
+		}
+		//grab error from api response
+		return AccountDto{}, errors.New(parseErrorMsg(accError.ErrorMsg))
+	default:
+		return AccountDto{}, fmt.Errorf("error creating account - code %d", resp.StatusCode)
 	}
-
-	return acc, nil
 }
 
-//Delete an account by id
-func (g *gateway) Delete(uid uuid.UUID) error {
+//Delete an account by id and version
+func (g *gateway) Delete(uid uuid.UUID, vrs string) error {
 	uri := fmt.Sprintf("%s/%s", g.apiUrl, uid.String())
 	req, err := http.NewRequest(http.MethodDelete, uri, nil)
 	if err != nil {
@@ -64,10 +83,10 @@ func (g *gateway) Delete(uid uuid.UUID) error {
 		return err
 	}
 
-	//add 'version' param to request
-	//TODO make it variable in function signature
-	q := url.Values{}
-	q.Add("version", "0")
+	//add 'version' param to query string
+	q := url.Values{
+		"version": []string{vrs},
+	}
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := g.webClient.Do(req)
@@ -79,12 +98,15 @@ func (g *gateway) Delete(uid uuid.UUID) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNoContent {
-		log.Printf("Deleting an account got a %d HTTP status code", resp.StatusCode)
-		return fmt.Errorf("could not delete the account with uid %s", uid.String())
-	}
 
-	return nil
+	switch resp.StatusCode {
+	case http.StatusNotFound:
+		return fmt.Errorf("account with uuid %s not found", uid.String())
+	case http.StatusConflict:
+		return errors.New("account with specified version not found")
+	default:
+		return nil
+	}
 }
 
 //Get an account by id
@@ -98,21 +120,24 @@ func (g *gateway) Get(uid uuid.UUID) (AccountDto, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("Fetching an account got a %d HTTP status code", resp.StatusCode)
-		return AccountDto{}, fmt.Errorf("could not fetch the account with uid %s", uid.String())
+	switch resp.StatusCode{
+	case http.StatusNotFound:
+		return AccountDto{}, fmt.Errorf("account with uid %s not found", uid.String())
+	case http.StatusOK:
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return AccountDto{}, fmt.Errorf("error reading body content: %s", err)
+		}
+		acc := AccountDto{}
+		if err = json.Unmarshal(body, &acc); err != nil {
+			return acc, fmt.Errorf("error converting json format to structure: %s", err)
+		}
+		return acc, nil
+	default:
+		return AccountDto{}, fmt.Errorf("error getting account with uid %s - code %d", uid.String(), resp.StatusCode)
 	}
-
-	acc, err := unmarshalResponse(resp)
-	if err != nil {
-		err = fmt.Errorf("error converting json format to structure: %s", err)
-		log.Print(err)
-		return acc, err
-	}
-
-	return acc, nil
 }
-
+/*
 func unmarshalResponse(resp *http.Response) (AccountDto, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -137,6 +162,7 @@ func unmarshalResponse(resp *http.Response) (AccountDto, error) {
 
 	return acc, nil
 }
+*/
 
 /*
 Error messages seem to come with different levels of
@@ -144,7 +170,7 @@ context, for example:
 
   `validation failure list:\nvalidation failure list:\nvalidation failure list:\nname.1 in body should be at least 1 chars long`
 
-Decided to separate ir by the \n char and send just the last part which seems more readable for the end user.
+Decided to separate it by the char '\n' and send just the last part which seems more readable for the end user.
 */
 func parseErrorMsg(msg string) string {
 	strs := strings.Split(msg, "\n")

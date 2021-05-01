@@ -31,7 +31,7 @@ type Data struct {
 
 
 //NewAccountDto return a new account dto
-func NewAccountDto(id, orgId uuid.UUID, cty, bidc string) AccountDto {
+func NewAccountDto(id, orgId uuid.UUID, cty, bidc string, name []string) AccountDto {
 	return AccountDto{
 		Data:  Data{
 			Type:           "accounts",
@@ -46,7 +46,7 @@ func NewAccountDto(id, orgId uuid.UUID, cty, bidc string) AccountDto {
 				BankIDCode:              bidc,
 				Bic:                     "",
 				Iban:                    "",
-				Name:                    nil,
+				Name:                    name,
 				AlternativeNames:        nil,
 				AccountClassification:   "Personal",
 				JointAccount:            false,

@@ -1,93 +1,118 @@
 package data
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	is2 "github.com/matryer/is"
-	"os"
 	"testing"
 )
 
-var uidAcc, orgId uuid.UUID
 
 
 func TestGet(t *testing.T){
 	is := is2.New(t)
-	gate := new(Gateway)
+	dto := setupNewAccount([]string{"Peter", "Devos"})
 
-	acc, err := gate.Get(uidAcc)
+	gate := NewGateway()
+	id, _ := uuid.Parse(dto.Data.ID)
+	accFound, err := gate.Get(id)
+
 	is.NoErr(err)
-	is.True(acc.Data.ID == uidAcc.String())
-	is.True(acc.Data.OrganisationID == orgId.String())
-	//by default, Personal
-	is.True(acc.Data.Attributes.AccountClassification == "Personal")
-	is.Equal(acc.Data.Attributes.Name, []string{"Peter", "Devos"})
+	assertAccounts(is, accFound, dto)
+
+	resetState(id)
 }
 
-func TestDelete(t *testing.T) {
+func TestGetNotFoundID(t *testing.T){
 	is := is2.New(t)
-	gate := new(Gateway)
-	dto, _ := newAccount([]string{"Kim", "Emma"})
-	acc, _ := gate.Create(dto)
-	uid, _ := uuid.Parse(acc.Data.ID)
-	err := gate.Delete(uid)
-	is.NoErr(err)
-}
-
-func TestCreate(t *testing.T) {
-	is := is2.New(t)
-	gate := new(Gateway)
-	dto, _ := newAccount([]string{"Martin", "Fuchs"})
-	acc, err := gate.Create(dto)
-	is.NoErr(err)
-	is.True(acc.Data.ID == dto.Data.ID)
-	is.True(acc.Data.Attributes.AccountClassification == "Personal")
-	is.Equal(acc.Data.Attributes.Name, []string{"Martin", "Fuchs"})
-}
-
-func TestGetWithInvalidUID(t *testing.T){
-	is := is2.New(t)
-	gate := new(Gateway)
+	gate := NewGateway()
 	var uid uuid.UUID
 
 	acc, err := gate.Get(uid)
 	is.True(err != nil)
+	is.Equal(err.Error(), fmt.Sprintf("account with uid %s not found", uid.String()))
 	is.Equal(acc, AccountDto{})
 }
 
-func TestDeleteWithInvalidUID(t *testing.T) {
+func TestDelete(t *testing.T) {
 	is := is2.New(t)
-	gate := new(Gateway)
+	gate := NewGateway()
+	dto := setupNewAccount([]string{"Kim", "Emma"})
+	uid, _ := uuid.Parse(dto.Data.ID)
+	err := gate.Delete(uid, "0")
+	is.NoErr(err)
+}
+
+func TestDeleteNotFoundID(t *testing.T) {
+	is := is2.New(t)
+	gate := NewGateway()
 	var uid uuid.UUID
 
-	err := gate.Delete(uid)
+	err := gate.Delete(uid, "0")
 	is.True(err != nil)
+	is.Equal(err.Error(), fmt.Sprintf("account with uuid %s not found", uid.String()))
+}
+
+func TestDeleteConflictID(t *testing.T) {
+	is := is2.New(t)
+	gate := NewGateway()
+	dto := setupNewAccount([]string{"Kim", "Emma"})
+	uid, _ := uuid.Parse(dto.Data.ID)
+	err := gate.Delete(uid, "1")
+	is.True(err != nil)
+	is.Equal(err.Error(), "account with specified version not found")
+}
+
+
+func TestCreate(t *testing.T) {
+	is := is2.New(t)
+	dto, _ := newAccount([]string{"Martin", "Fuchs"})
+	gate := NewGateway()
+	created, err := gate.Create(dto)
+	is.NoErr(err)
+	assertAccounts(is, created, dto)
+
+	id, _ := uuid.Parse(created.Data.ID)
+	resetState(id)
+}
+
+
+func TestCreateWithConflict(t *testing.T) {
+	is := is2.New(t)
+	gate := NewGateway()
+
+	dto, _ := newAccount([]string{"Kim", "Emma", "First"})
+	_, err := gate.Create(dto)
+	is.NoErr(err)
+	_, err = gate.Create(dto)
+
+	is.True(err != nil)
+	//reuse the error message from account api, assert that the string is not empty. Content may vary
 	is.True(len(err.Error()) > 0)
 }
 
-func TestMain(m *testing.M) {
-	setup()
-	code := m.Run()
-	shutdown()
-	os.Exit(code)
+func TestCreateWithBadRequest(t *testing.T)  {
+	is := is2.New(t)
+	gate := NewGateway()
+	//one example is empty line of name
+	dto, _ := newAccount([]string{"Kim", ""})
+	_, err := gate.Create(dto)
+	is.True(err != nil)
+	//reuse the error message from account api, assert that the string is not empty. Content may vary
+	is.True(len(err.Error()) > 0)
 }
 
-func setup(){
-	gate := new(Gateway)
 
-	dto, err := newAccount([]string{"Peter", "Devos"})
+func setupNewAccount(name []string) AccountDto{
+	gate := NewGateway()
+
+	dto, err := newAccount(name)
 
 	acc, err := gate.Create(dto)
 	if err != nil {
 		panic(err)
 	}
-	uidAcc, err = uuid.Parse(acc.Data.ID)
-	if err != nil {
-		panic(err)
-	}
-	orgId, err = uuid.Parse(acc.Data.OrganisationID)
-	if err != nil {
-		panic(err)
-	}
+	return acc
 }
 
 func newAccount(name []string) (AccountDto, error) {
@@ -100,16 +125,34 @@ func newAccount(name []string) (AccountDto, error) {
 	if err != nil {
 		panic(err)
 	}
-	dto := NewAccountDto(idAcc, idOrg, "GB", "GBDSC")
-	dto.Data.Attributes.Name = name
+	dto := NewAccountDto(idAcc, idOrg, "GB", "GBDSC", name)
 	return dto, err
 }
 
-func shutdown(){
-	gate := new(Gateway)
+func resetState(uid uuid.UUID){
+	gate := NewGateway()
 	//reset state previously to testing
-	err := gate.Delete(uidAcc)
+	err := gate.Delete(uid, "0")
 	if err != nil {
 		panic(err)
 	}
+}
+
+func assertAccounts(is *is2.I, created AccountDto, dto AccountDto) {
+	is.True(created.Data.Type == dto.Data.Type)
+	is.True(created.Data.ID == dto.Data.ID)
+	is.True(created.Data.OrganisationID == dto.Data.OrganisationID)
+	is.True(created.Data.Version == dto.Data.Version)
+	is.True(created.Data.Attributes.Country == dto.Data.Attributes.Country)
+	is.True(created.Data.Attributes.BaseCurrency == dto.Data.Attributes.BaseCurrency)
+	is.True(created.Data.Attributes.AccountNumber == dto.Data.Attributes.AccountNumber)
+	is.True(created.Data.Attributes.BankID == dto.Data.Attributes.BankID)
+	is.True(created.Data.Attributes.BankIDCode == dto.Data.Attributes.BankIDCode)
+	is.True(created.Data.Attributes.Bic == dto.Data.Attributes.Bic)
+	is.True(created.Data.Attributes.Iban == dto.Data.Attributes.Iban)
+	is.Equal(created.Data.Attributes.Name, dto.Data.Attributes.Name)
+	is.Equal(created.Data.Attributes.AlternativeNames, nil)
+	is.True(created.Data.Attributes.AccountClassification == "Personal")
+	is.Equal(created.Data.Attributes.SecondaryIdentification, dto.Data.Attributes.SecondaryIdentification)
+	is.Equal(created.Data.Attributes.Switched, dto.Data.Attributes.Switched)
 }

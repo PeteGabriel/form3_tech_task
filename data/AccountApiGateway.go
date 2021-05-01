@@ -8,7 +8,7 @@ type AccountApiGateway interface {
 	Create(AccountDto) (AccountDto, error)
 
 	//Delete an account by id
-	Delete(uid uuid.UUID) error
+	Delete(uid uuid.UUID, vrs string) error
 
 	//Get an account by id
 	Get(id uuid.UUID) (AccountDto, error)
