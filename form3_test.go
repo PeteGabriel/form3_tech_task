@@ -7,6 +7,19 @@ import (
 	"testing"
 )
 
+func TestGetAccount(t *testing.T) {
+	is := is2.New(t)
+	dto := NewAccount([]string{"Hugh", "Grant"}, "GB", getRandomId(), getRandomId())
+	_, _ = CreateAccount(dto)
+
+	acc, err := GetAccount(dto.Id.String())
+	is.NoErr(err)
+	assertAccountData(is, acc, dto)
+
+	//clean up data
+	_ = DeleteAccount(acc.Id.String(), acc.Version)
+}
+
 func TestCreateAccount(t *testing.T) {
 	is := is2.New(t)
 
@@ -30,8 +43,7 @@ func TestCreateAccount(t *testing.T) {
 	is.NoErr(err)
 	assertAccountData(is, acc, dto)
 	//clean up data
-	err = DeleteAccount(acc.Id.String(), acc.Version)
-	is.NoErr(err)
+	_ = DeleteAccount(acc.Id.String(), acc.Version)
 }
 
 func TestCreateAccountWithMinimumInfo(t *testing.T) {

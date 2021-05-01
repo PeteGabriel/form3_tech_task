@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-
-
 func TestGet(t *testing.T){
 	is := is2.New(t)
 	dto := setupNewAccount([]string{"Peter", "Devos"})
@@ -61,8 +59,9 @@ func TestDeleteConflictID(t *testing.T) {
 	err := gate.Delete(uid, "1")
 	is.True(err != nil)
 	is.Equal(err.Error(), "account with specified version not found")
-}
 
+	resetState(uid)
+}
 
 func TestCreate(t *testing.T) {
 	is := is2.New(t)
@@ -76,7 +75,6 @@ func TestCreate(t *testing.T) {
 	resetState(id)
 }
 
-
 func TestCreateWithConflict(t *testing.T) {
 	is := is2.New(t)
 	gate := NewGateway()
@@ -89,6 +87,9 @@ func TestCreateWithConflict(t *testing.T) {
 	is.True(err != nil)
 	//reuse the error message from account api, assert that the string is not empty. Content may vary
 	is.True(len(err.Error()) > 0)
+
+	id, _ := uuid.Parse(dto.Data.ID)
+	resetState(id)
 }
 
 func TestCreateWithBadRequest(t *testing.T)  {
@@ -125,7 +126,7 @@ func newAccount(name []string) (AccountDto, error) {
 	if err != nil {
 		panic(err)
 	}
-	dto := NewAccountDto(idAcc, idOrg, "GB", "GBDSC", name)
+	dto := NewAccountDto(idAcc, idOrg, "GB", name)
 	return dto, err
 }
 

@@ -128,7 +128,7 @@ func NewAccountFromDto(dto data.AccountDto) *Account {
 
 //ToDto transforms an instance of Account into a new instance of AccountDto
 func (info *Account) ToDto() data.AccountDto {
-	dto := data.NewAccountDto(info.Id, info.OrganisationId, info.Country, info.Bic, info.Name)
+	dto := data.NewAccountDto(info.Id, info.OrganisationId, info.Country, info.Name)
 	dto.Data.CreatedOn = info.CreatedOn
 	dto.Data.ModifiedOn = info.ModifiedOn
 	dto.Data.Version = info.Version
@@ -138,7 +138,6 @@ func (info *Account) ToDto() data.AccountDto {
 	dto.Data.Attributes.BankIDCode = info.BankIdCode
 	dto.Data.Attributes.Bic = info.Bic
 	dto.Data.Attributes.Iban = info.Iban
-	dto.Data.Attributes.Name = info.Name[:]
 	dto.Data.Attributes.AlternativeNames = info.AlternativeNames
 	dto.Data.Attributes.AccountClassification = string(info.Classification)
 	dto.Data.Attributes.JointAccount = info.IsJointAccount
