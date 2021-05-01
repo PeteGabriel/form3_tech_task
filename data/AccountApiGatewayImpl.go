@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -49,15 +50,7 @@ func (g *gateway) Create(dto AccountDto) (AccountDto, error) {
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return AccountDto{}, fmt.Errorf("error reading body content: %s", err)
-		}
-		acc := AccountDto{}
-		if err = json.Unmarshal(body, &acc); err != nil {
-			return acc, fmt.Errorf("error converting json format to structure: %s", err)
-		}
-		return acc, nil
+		return handleGoodResult(resp.Body)
 	case http.StatusBadRequest, http.StatusConflict:
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -92,9 +85,7 @@ func (g *gateway) Delete(uid uuid.UUID, vrs string) error {
 	resp, err := g.webClient.Do(req)
 
 	if err != nil {
-		err = fmt.Errorf("error sending delete request to account API: %s", err)
-		log.Print(err)
-		return err
+		return fmt.Errorf("error sending delete request to account API: %s", err)
 	}
 	defer resp.Body.Close()
 
@@ -124,45 +115,23 @@ func (g *gateway) Get(uid uuid.UUID) (AccountDto, error) {
 	case http.StatusNotFound:
 		return AccountDto{}, fmt.Errorf("account with uid %s not found", uid.String())
 	case http.StatusOK:
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return AccountDto{}, fmt.Errorf("error reading body content: %s", err)
-		}
-		acc := AccountDto{}
-		if err = json.Unmarshal(body, &acc); err != nil {
-			return acc, fmt.Errorf("error converting json format to structure: %s", err)
-		}
-		return acc, nil
+		return handleGoodResult(resp.Body)
 	default:
 		return AccountDto{}, fmt.Errorf("error getting account with uid %s - code %d", uid.String(), resp.StatusCode)
 	}
 }
-/*
-func unmarshalResponse(resp *http.Response) (AccountDto, error) {
-	body, err := ioutil.ReadAll(resp.Body)
+
+func handleGoodResult(src io.ReadCloser) (AccountDto, error) {
+	body, err := ioutil.ReadAll(src)
 	if err != nil {
 		return AccountDto{}, fmt.Errorf("error reading body content: %s", err)
 	}
-
-	if resp.StatusCode == http.StatusBadRequest {
-		accError := AccountError{}
-		if err = json.Unmarshal(body, &accError); err != nil {
-			return AccountDto{}, fmt.Errorf("error converting json format to structure: %s", err)
-		}
-		//grab error from api response
-		return AccountDto{}, fmt.Errorf("bad request: %s", parseErrorMsg(accError.ErrorMsg))
-	}
-
-	//handle success case. Did not handled redirects as those seem not to be part of any
-	//response and if implemented as HTTP spec it would need a specific handling.
 	acc := AccountDto{}
 	if err = json.Unmarshal(body, &acc); err != nil {
 		return acc, fmt.Errorf("error converting json format to structure: %s", err)
 	}
-
 	return acc, nil
 }
-*/
 
 /*
 Error messages seem to come with different levels of
