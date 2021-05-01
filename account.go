@@ -3,6 +3,7 @@ package form3_task
 import (
 	"github.com/google/uuid"
 	"github.com/petegabriel/form3_task/data"
+	"log"
 )
 
 //Classification of account. Can be one of 'Personal' or 'Business'.
@@ -16,8 +17,14 @@ const (
 //Account represents a bank account that is registered with Form3 fake account api.
 type Account struct {
 
-	//Id of the account.
+	//Id of the account in UUID 4 format. It identifies the resource.
 	Id uuid.UUID
+
+	//CreatedOn represents the time and date on which the resource was created.
+	CreatedOn string
+
+	//ModifiedOn represents the time and date on which the resource was last modified.
+	ModifiedOn string
 
 	//OrganisationId of the account.
 	OrganisationId uuid.UUID
@@ -70,24 +77,14 @@ type Account struct {
 
 //NewAccount creates an instance of Account with default values assigned.
 func NewAccount(name []string, country string, id, orgId uuid.UUID) *Account {
+	//all other fields will be automatically initialised by their
+	//respective 'zero value'.
 	return &Account{
 		Id:                      id,
-		Version:                 0,
 		OrganisationId:          orgId,
 		Country:                 country,
-		BaseCurrency:            "",
-		AccountNumber:           "",
-		BankId:                  "",
-		BankIdCode:              "",
-		Bic:                     "",
-		Iban:                    "",
 		Name:                    name,
-		AlternativeNames:        nil,
 		Classification:          Personal,
-		IsJointAccount:          false,
-		IsAccountMatchingOptOut: false,
-		SecondaryIdentification: "",
-		IsSwitched:              false,
 	}
 }
 
@@ -100,25 +97,45 @@ func NewAccountFromDto(dto data.AccountDto) *Account {
 
 	uid, err := uuid.Parse(id)
 	if err != nil {
-		//TODO
+		log.Fatal(err)
 	}
 
 	ouid, err := uuid.Parse(oid)
 	if err != nil {
-		//TODO
+		log.Fatal(err)
 	}
 
-	return NewAccount(name, ctry, uid, ouid)
-}
+	acc := NewAccount(name, ctry, uid, ouid)
+	acc.CreatedOn = dto.Data.CreatedOn
+	acc.ModifiedOn = dto.Data.ModifiedOn
+	acc.Version = dto.Data.Version
+	acc.BaseCurrency = dto.Data.Attributes.BaseCurrency
+	acc.AccountNumber = dto.Data.Attributes.AccountNumber
+	acc.BankId = dto.Data.Attributes.BankID
+	acc.BankIdCode = dto.Data.Attributes.BankIDCode
+	acc.Bic = dto.Data.Attributes.Bic
+	acc.Iban = dto.Data.Attributes.Iban
+	acc.Name = dto.Data.Attributes.Name
+	acc.AlternativeNames = dto.Data.Attributes.AlternativeNames
+	acc.Classification = Classification(dto.Data.Attributes.AccountClassification)
+	acc.IsJointAccount = dto.Data.Attributes.JointAccount
+	acc.IsAccountMatchingOptOut = dto.Data.Attributes.AccountMatchingOptOut
+	acc.SecondaryIdentification = dto.Data.Attributes.SecondaryIdentification
+	acc.IsSwitched = dto.Data.Attributes.Switched
+	return acc
 
+}
 
 //ToDto transforms an instance of Account into a new instance of AccountDto
 func (info *Account) ToDto() data.AccountDto {
-	dto := data.NewAccountDto(info.Id, info.OrganisationId, info.Country, info.Bic)
+	dto := data.NewAccountDto(info.Id, info.OrganisationId, info.Country, info.Bic, info.Name)
+	dto.Data.CreatedOn = info.CreatedOn
+	dto.Data.ModifiedOn = info.ModifiedOn
 	dto.Data.Version = info.Version
 	dto.Data.Attributes.BaseCurrency = info.BaseCurrency
 	dto.Data.Attributes.AccountNumber = info.AccountNumber
 	dto.Data.Attributes.BankID = info.BankId
+	dto.Data.Attributes.BankIDCode = info.BankIdCode
 	dto.Data.Attributes.Bic = info.Bic
 	dto.Data.Attributes.Iban = info.Iban
 	dto.Data.Attributes.Name = info.Name[:]

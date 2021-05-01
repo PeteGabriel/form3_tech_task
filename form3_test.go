@@ -1,11 +1,56 @@
 package form3_task
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	is2 "github.com/matryer/is"
 	"testing"
 )
 
+func TestCreateAccount(t *testing.T) {
+	is := is2.New(t)
+
+	country := "GB"
+	name := []string{"Samantha Holder"}
+	id := getRandomId()
+	orgId := getRandomId()
+	dto := NewAccount(name, country, id, orgId)
+	dto.BaseCurrency = "GBP"
+	dto.AccountNumber = "41426819"
+	dto.BankId = "400300"
+	dto.BankIdCode = "GBDSC"
+	dto.Bic = "NWBKGB22"
+	dto.Iban = "GB11NWBK40030041426819"
+	dto.AlternativeNames = []string{"Sam Holder"}
+	dto.Classification = Personal
+	dto.SecondaryIdentification = "A1B2C3D4"
+
+	acc, err := CreateAccount(dto)
+
+	is.NoErr(err)
+	assertAccountData(is, acc, dto)
+	//clean up data
+	err = DeleteAccount(acc.Id.String(), acc.Version)
+	is.NoErr(err)
+}
+
+func TestCreateAccountWithMinimumInfo(t *testing.T) {
+	is := is2.New(t)
+	country := "PT"
+	name := []string{"Pedro", "Almeida"}
+	id := getRandomId()
+	orgId := getRandomId()
+	dto := NewAccount(name, country, id, orgId)
+
+	acc, err := CreateAccount(dto)
+	is.NoErr(err)
+
+	assertAccountData(is, acc, dto)
+
+	//clean up data
+	err = DeleteAccount(acc.Id.String(), acc.Version)
+	is.NoErr(err)
+}
 
 func TestCreateAccountWithInvalidParams(t *testing.T) {
 	is := is2.New(t)
@@ -21,21 +66,41 @@ func TestCreateAccountWithInvalidParams(t *testing.T) {
 	is.Equal(acc, nil)
 }
 
-func TestCreateAccount(t *testing.T) {
+func TestDeleteWithInvalidUUID(t *testing.T) {
 	is := is2.New(t)
-	country := "PT"
-	name := []string{"Pedro", "Almeida"}
+	id := "c1-70-41-9a-e21"
+	err := DeleteAccount(id, 0)
+	is.True(err != nil)
+	is.Equal(err.Error(), "given id must be a valid uuid type")
+}
+
+func TestDeleteWithNonexistentUUID(t *testing.T) {
+	is := is2.New(t)
+	id := getRandomId().String()
+	err := DeleteAccount(id, 0)
+	is.True(err != nil)
+	is.Equal(err.Error(), fmt.Sprintf("account with uuid %s not found", id))
+}
+
+func TestDeleteWithInvalidVersion(t *testing.T) {
+	is := is2.New(t)
+
+	country := "GB"
+	name := []string{"Peter Devos"}
 	id := getRandomId()
 	orgId := getRandomId()
 	dto := NewAccount(name, country, id, orgId)
-	acc, err := CreateAccount(dto)
-	is.NoErr(err)
 
-	assertAccountData(is, acc, dto)
+	_, err := CreateAccount(dto)
 
-	//TODO clean up data
+	err = DeleteAccount(id.String(), 10)
+	is.True(err != nil)
+	is.Equal(err.Error(), "account with specified version not found")
 
+	//clean up data
+	_ = DeleteAccount(id.String(), 0)
 }
+
 
 func TestNewAccount(t *testing.T) {
 	is := is2.New(t)
@@ -55,7 +120,7 @@ func TestNewAccount(t *testing.T) {
 	is.Equal(accInfo.Bic, "")
 	is.Equal(accInfo.Iban, "")
 	is.Equal(accInfo.Name, name)
-	is.Equal(accInfo.AlternativeNames, [3]string{})
+	is.Equal(accInfo.AlternativeNames, nil)
 	is.Equal(accInfo.Classification, Personal)
 	is.Equal(accInfo.IsJointAccount, false)
 	is.Equal(accInfo.IsAccountMatchingOptOut, false)
@@ -73,6 +138,8 @@ func getRandomId() uuid.UUID {
 
 func assertAccountData(is *is2.I, acc *Account, dto *Account) {
 	is.Equal(acc.Id, dto.Id)
+	is.True(len(acc.CreatedOn)>0)
+	is.True(len(acc.ModifiedOn)>0)
 	is.Equal(acc.OrganisationId, dto.OrganisationId)
 	is.Equal(acc.Country, dto.Country)
 	is.Equal(acc.BaseCurrency, dto.BaseCurrency)

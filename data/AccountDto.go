@@ -27,6 +27,8 @@ type Data struct {
 	OrganisationID string     `json:"organisation_id"`
 	Version        int        `json:"version"`
 	Attributes     Attributes `json:"attributes"`
+	CreatedOn      string     `json:"created_on"`
+	ModifiedOn      string    `json:"modified_on"`
 }
 
 
