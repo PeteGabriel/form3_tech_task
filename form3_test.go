@@ -20,6 +20,25 @@ func TestGetAccount(t *testing.T) {
 	_ = DeleteAccount(acc.Id.String(), acc.Version)
 }
 
+func TestGetAccountUuidNotFound(t *testing.T) {
+	is := is2.New(t)
+
+	id := getRandomId().String()
+	acc, err := GetAccount(id)
+	is.True(err != nil)
+	is.Equal(err.Error(), fmt.Sprintf("account with uid %s not found", id))
+	is.True(acc == nil)
+}
+
+func TestGetWithInvalidUUID(t *testing.T) {
+	is := is2.New(t)
+	id := "c1-70-41-9a-e21"
+	acc, err := GetAccount(id)
+	is.True(err != nil)
+	is.True(acc == nil)
+	is.Equal(err.Error(), "given id must be a valid uuid type")
+}
+
 func TestCreateAccount(t *testing.T) {
 	is := is2.New(t)
 
@@ -63,6 +82,29 @@ func TestCreateAccountWithMinimumInfo(t *testing.T) {
 	err = DeleteAccount(acc.Id.String(), acc.Version)
 	is.NoErr(err)
 }
+
+func TestCreateAccountConflict(t *testing.T) {
+	is := is2.New(t)
+	country := "PT"
+	name := []string{"Pedro", "Almeida"}
+	id := getRandomId()
+	orgId := getRandomId()
+	dto := NewAccount(name, country, id, orgId)
+
+	_, err := CreateAccount(dto)
+	is.NoErr(err)
+
+	//same id
+	dto2 := NewAccount(name, country, id, getRandomId())
+	_, err = CreateAccount(dto2)
+	is.True(err != nil)
+	is.True(len(err.Error()) > 0)
+
+	//clean up data
+	err = DeleteAccount(id.String(), 0)
+	is.NoErr(err)
+}
+
 
 func TestCreateAccountWithInvalidParams(t *testing.T) {
 	is := is2.New(t)

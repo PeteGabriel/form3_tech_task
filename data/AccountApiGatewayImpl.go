@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -28,7 +29,7 @@ type gateway struct {
 func NewGateway() AccountApiGateway {
 	return &gateway{
 		webClient: http.Client{},
-		apiUrl:    "http://0.0.0.0:8080/v1/organisation/accounts", //os.Getenv("ACCOUNT_API_ADDR"),
+		apiUrl:    os.Getenv("ACCOUNT_API_ADDR"),
 	}
 }
 

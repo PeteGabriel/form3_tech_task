@@ -29,6 +29,7 @@ func DeleteAccount(id string, vrs int) error {
 	if !isUuid {
 		invalidIdErr := errors.New("given id must be a valid uuid type")
 		log.Print(invalidIdErr)
+		return invalidIdErr
 	}
 
 	gate := data.NewGateway()
