@@ -32,8 +32,8 @@ upon:
   
 I've tried to follow as many idiomatic concepts as possible while using Go in this project. One of those example can be 
 seen in the functions that help to create a new instance of some struct _(NewXxxx)_. This library makes use of two 
-external packages, the testing framework [https://github.com/matryer/is](is) which in my opinion makes the tests more 
-readable and [github.com/google/uuid](uuid) to manage the UUID types.
+external packages, the testing framework [is](https://github.com/matryer/is) which in my opinion makes the tests more 
+readable and [uuid](github.com/google/uuid) to manage the UUID types.
 
 How to use
 ----
