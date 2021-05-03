@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,7 +28,7 @@ type gateway struct {
 func NewGateway() AccountApiGateway {
 	return &gateway{
 		webClient: http.Client{},
-		apiUrl:    os.Getenv("ACCOUNT_API_ADDR"),
+		apiUrl: os.Getenv("ACCOUNT_API_ADDR"),
 	}
 }
 
@@ -37,15 +36,11 @@ func NewGateway() AccountApiGateway {
 func (g *gateway) Create(dto AccountDto) (AccountDto, error) {
 	cnt, err := json.Marshal(dto)
 	if err != nil {
-		err = fmt.Errorf("error converting structure to json format: %s", err)
-		log.Print(err)
-		return AccountDto{}, err
+		return AccountDto{}, fmt.Errorf("error converting structure to json format: %s", err)
 	}
 	resp, err := g.webClient.Post(g.apiUrl, ContentType, bytes.NewBuffer(cnt))
 	if err != nil {
-		err = fmt.Errorf("error sending post request to account API: %s", err)
-		log.Print(err)
-		return AccountDto{}, err
+		return AccountDto{}, fmt.Errorf("error sending post request to account API: %s", err)
 	}
 	defer resp.Body.Close()
 
@@ -73,7 +68,6 @@ func (g *gateway) Delete(uid uuid.UUID, vrs string) error {
 	uri := fmt.Sprintf("%s/%s", g.apiUrl, uid.String())
 	req, err := http.NewRequest(http.MethodDelete, uri, nil)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
@@ -106,9 +100,7 @@ func (g *gateway) Get(uid uuid.UUID) (AccountDto, error) {
 	resp, err := g.webClient.Get(fmt.Sprintf("%s/%s", g.apiUrl, uid.String()))
 
 	if err != nil {
-		err = fmt.Errorf("error sending get request to account API: %s", err)
-		log.Print(err)
-		return AccountDto{}, err
+		return AccountDto{}, fmt.Errorf("error sending get request to account API: %s", err)
 	}
 	defer resp.Body.Close()
 
@@ -143,6 +135,7 @@ context, for example:
 Decided to separate it by the char '\n' and send just the last part which seems more readable for the end user.
 */
 func parseErrorMsg(msg string) string {
+	msg = strings.Trim(msg, " \n \t")
 	strs := strings.Split(msg, "\n")
 	return strs[len(strs)-1]
 }

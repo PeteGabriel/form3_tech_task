@@ -157,3 +157,11 @@ func assertAccounts(is *is2.I, created AccountDto, dto AccountDto) {
 	is.Equal(created.Data.Attributes.SecondaryIdentification, dto.Data.Attributes.SecondaryIdentification)
 	is.Equal(created.Data.Attributes.Switched, dto.Data.Attributes.Switched)
 }
+
+func TestParseErrorMsg(t *testing.T){
+	is := is2.New(t)
+	err := "validation failure list:\nvalidation failure list:\nvalidation failure list:\nname.1 in body should be at least 1 chars long\n"
+	expected :=  "name.1 in body should be at least 1 chars long"
+	msg := parseErrorMsg(err)
+	is.Equal(msg, expected)
+}
