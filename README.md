@@ -65,3 +65,7 @@ Retrieves an account by the given id. Id must be a valid uuid type.
 Returns an error if a problem occurs while trying to delete the account with the given id.
 
 
+### What to improve
+
+* Remove internal logs which may mislead the program using this lib;
+* Implement a starting point that allows customization of this lib (ports, hostnames, etc...);
